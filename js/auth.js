@@ -181,7 +181,7 @@ async function whenSubmit(e) {
 
         setTimeout(() => {
 
-            window.location.href = "home.html";
+            window.location.href = "xo.html";
 
         }, 2000);
 
