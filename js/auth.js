@@ -287,6 +287,21 @@ const onlineOverlayRematch =
     document.getElementById("onlineOverlayRematch");
 
 
+// Add Exit button on online result overlay dynamically if not present in HTML
+if (onlineWinnerOverlay && !document.getElementById("onlineOverlayExit")) {
+    const overlayExitBtn = document.createElement("button");
+    overlayExitBtn.id = "onlineOverlayExit";
+    overlayExitBtn.type = "button";
+    overlayExitBtn.className = "mt-4 ml-3 px-10 py-4 border border-gray-700 bg-black/30 text-gray-400 text-xs font-bold tracking-[0.35em] uppercase transition-all duration-300 hover:border-blue-500/60 hover:text-gray-200";
+    overlayExitBtn.textContent = "Exit Arena";
+    overlayExitBtn.addEventListener("click", exitOnlineGame);
+
+    if (onlineOverlayRematch && onlineOverlayRematch.parentNode) {
+        onlineOverlayRematch.after(overlayExitBtn);
+    }
+}
+
+
 // ============================================================
 // ONLINE GAME STATE
 // ============================================================
@@ -1243,12 +1258,67 @@ async function handleRoomUpdate(room) {
         }
 
 
+        // Synchronized Rematch status handling (when room.status is "rematch_X" or "rematch_O")
+        if (room.status === "rematch_X" || room.status === "rematch_O") {
+            console.log("ROOM UPDATE: Rematch requested status =", room.status);
+
+            const requesterSymbol = room.status === "rematch_X" ? "X" : "O";
+
+            if (onlineGameState.mySymbol === requesterSymbol) {
+                if (onlineWinnerReason) {
+                    onlineWinnerReason.textContent = "REMATCH REQUESTED · WAITING FOR OPPONENT...";
+                }
+                const overlayRematchBtn = document.getElementById("onlineOverlayRematch");
+                if (overlayRematchBtn) {
+                    overlayRematchBtn.disabled = true;
+                    overlayRematchBtn.textContent = "WAITING...";
+                }
+                if (onlineRematchBtn) {
+                    onlineRematchBtn.disabled = true;
+                    onlineRematchBtn.textContent = "WAITING...";
+                }
+            } else {
+                if (onlineWinnerReason) {
+                    onlineWinnerReason.textContent = "OPPONENT REQUESTED A REMATCH!";
+                }
+                const overlayRematchBtn = document.getElementById("onlineOverlayRematch");
+                if (overlayRematchBtn) {
+                    overlayRematchBtn.disabled = false;
+                    overlayRematchBtn.textContent = "ACCEPT REMATCH";
+                }
+                if (onlineRematchBtn) {
+                    onlineRematchBtn.disabled = false;
+                    onlineRematchBtn.textContent = "ACCEPT REMATCH";
+                }
+            }
+        }
+
+
         // Screen Transition: Automatically move from waiting/setup to board when playerO joins or status is playing
 
         if (
             room.playerO &&
-            (room.status === "playing" || room.status === "finished")
+            (room.status === "playing" || (room.status === "finished" && room.winner === null))
         ) {
+
+            // Reset rematch buttons state
+            const overlayRematchBtn = document.getElementById("onlineOverlayRematch");
+            if (overlayRematchBtn) {
+                overlayRematchBtn.disabled = false;
+                overlayRematchBtn.textContent = "REMATCH";
+            }
+            if (onlineRematchBtn) {
+                onlineRematchBtn.disabled = false;
+                onlineRematchBtn.textContent = "REMATCH";
+            }
+
+            if (
+                onlineWinnerOverlay &&
+                !onlineWinnerOverlay.classList.contains("hidden")
+            ) {
+                onlineWinnerOverlay.classList.add("hidden");
+                onlineWinnerOverlay.classList.remove("flex");
+            }
 
             if (
                 onlineWaitingPanel &&
@@ -1274,6 +1344,14 @@ async function handleRoomUpdate(room) {
                 onlineBoardScreen.classList.add("flex");
             }
 
+            renderOnlineBoard();
+            updateOnlineUI();
+            startTimerUpdate();
+        }
+
+
+        // Playing State (mid-game updates)
+        if (room.status === "playing") {
             renderOnlineBoard();
             updateOnlineUI();
             startTimerUpdate();
@@ -1809,82 +1887,88 @@ function showOnlineGameResult() {
 
 
 // ============================================================
-// REMATCH
+// SYNCHRONIZED REMATCH
 // ============================================================
 
 async function requestOnlineRematch() {
 
+    if (!onlineGameState.roomId) return;
+
     try {
+        const mySymbol = onlineGameState.mySymbol; // "X" or "O"
+        const currentStatus = onlineGameState.gameStatus;
 
-        const now =
-            new Date().toISOString();
+        console.log("REMATCH REQUEST: player symbol =", mySymbol, "current room status =", currentStatus);
 
+        // If the other player already requested a rematch (status is rematch_X or rematch_O), accept and start match!
+        if (
+            (currentStatus === "rematch_X" && mySymbol === "O") ||
+            (currentStatus === "rematch_O" && mySymbol === "X")
+        ) {
+            console.log("REMATCH ACCEPTED: Both players agreed to rematch");
+            console.log("REMATCH STARTED");
 
-        const {
-            error
-        } = await supabaseClient
+            const now = new Date().toISOString();
+
+            const { error } = await supabaseClient
+                .from("rooms")
+                .update({
+                    board: JSON.stringify([
+                        "", "", "",
+                        "", "", "",
+                        "", "", ""
+                    ]),
+                    currentTurn: "X",
+                    playerXTime: 60,
+                    playerOTime: 60,
+                    turnStartedAt: now,
+                    status: "playing",
+                    winner: null
+                })
+                .eq("id", onlineGameState.roomId);
+
+            if (error) {
+                console.error("Room database error starting rematch:", error);
+                throw error;
+            }
+
+            return;
+        }
+
+        // First player to request rematch -> set status to rematch_X or rematch_O
+        const newStatus = mySymbol === "X" ? "rematch_X" : "rematch_O";
+
+        console.log("Updating room status for rematch request:", newStatus);
+
+        const { error } = await supabaseClient
             .from("rooms")
             .update({
-
-                board: JSON.stringify([
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    ""
-                ]),
-
-                currentTurn: "X",
-
-                playerXTime: 60,
-
-                playerOTime: 60,
-
-                turnStartedAt: now,
-
-                status: "playing",
-
-                winner: null
-
+                status: newStatus
             })
-            .eq(
-                "id",
-                onlineGameState.roomId
-            );
-
+            .eq("id", onlineGameState.roomId);
 
         if (error) {
-            console.error("Room database error:", error);
-            if (error) {
-                console.error("Error details:", {
-                    code: error.code,
-                    message: error.message,
-                    details: error.details,
-                    hint: error.hint
-                });
-            }
+            console.error("Error setting rematch status:", error);
             throw error;
         }
 
+        if (onlineWinnerReason) {
+            onlineWinnerReason.textContent = "REMATCH REQUESTED · WAITING FOR OPPONENT...";
+        }
 
-        onlineWinnerOverlay.classList.add(
-            "hidden"
-        );
+        const overlayRematchBtn = document.getElementById("onlineOverlayRematch");
+        if (overlayRematchBtn) {
+            overlayRematchBtn.disabled = true;
+            overlayRematchBtn.textContent = "WAITING...";
+        }
 
-        onlineWinnerOverlay.classList.remove(
-            "flex"
-        );
+        if (onlineRematchBtn) {
+            onlineRematchBtn.disabled = true;
+            onlineRematchBtn.textContent = "WAITING...";
+        }
 
     } catch (error) {
-
-        console.error(
-            "Error starting rematch:",
-            error
-        );
+        console.error("Error requesting online rematch:", error);
     }
 }
 
@@ -1898,9 +1982,9 @@ if (onlineRematchBtn) {
 }
 
 
-if (overlayRematch) {
+if (onlineOverlayRematch) {
 
-    overlayRematch.addEventListener(
+    onlineOverlayRematch.addEventListener(
         "click",
         requestOnlineRematch
     );
@@ -1911,30 +1995,43 @@ if (overlayRematch) {
 // EXIT ONLINE ARENA
 // ============================================================
 
+function exitOnlineGame() {
+    console.log("EXIT ONLINE GAME");
+
+    if (onlineWinnerOverlay) {
+        onlineWinnerOverlay.classList.add("hidden");
+        onlineWinnerOverlay.classList.remove("flex");
+    }
+
+    if (onlineBoardScreen) {
+        onlineBoardScreen.classList.add("hidden");
+        onlineBoardScreen.classList.remove("flex");
+    }
+
+    if (onlineWaitingPanel) {
+        onlineWaitingPanel.classList.add("hidden");
+        onlineWaitingPanel.classList.remove("flex");
+    }
+
+    if (onlineSetup) {
+        onlineSetup.classList.add("hidden");
+        onlineSetup.classList.remove("flex");
+    }
+
+    if (modeSelect) {
+        modeSelect.classList.remove("hidden");
+        modeSelect.classList.add("flex");
+    }
+
+    resetOnlineState();
+}
+
+
 if (onlineExitBtn) {
 
     onlineExitBtn.addEventListener(
         "click",
-        function () {
-
-            resetOnlineState();
-
-            onlineBoardScreen.classList.add(
-                "hidden"
-            );
-
-            onlineBoardScreen.classList.remove(
-                "flex"
-            );
-
-            modeSelect.classList.remove(
-                "hidden"
-            );
-
-            modeSelect.classList.add(
-                "flex"
-            );
-        }
+        exitOnlineGame
     );
 }
 
