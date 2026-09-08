@@ -1,4 +1,3 @@
-
 const SUPABASE_URL = "https://rxtltbxofpydthukesin.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_UqBYM7pB48fGfvIPvoPO3g_OQkizOzJ";
 
@@ -215,10 +214,6 @@ const onlineBackBtn = document.getElementById("onlineBackBtn");
 
 const onlineSetup = document.getElementById("onlineSetup");
 
-// onlineName is no longer required.
-// The logged-in user's name is loaded from Supabase.
-const onlineName = document.getElementById("onlineName");
-
 const createRoomBtn = document.getElementById("createRoomBtn");
 const joinRoomBtn = document.getElementById("joinRoomBtn");
 
@@ -336,7 +331,6 @@ let onlineGameState = {
 // ============================================================
 
 async function getCurrentPlayer() {
-
     const {
         data: { user },
         error: authError
@@ -347,37 +341,31 @@ async function getCurrentPlayer() {
     }
 
     if (!user) {
-        throw new Error("You must be logged in to play online.");
+        throw new Error("You must be logged in.");
     }
 
-    /*
-        The trigger creates the player when the account is created.
-
-        We assume players.id = auth.users.id.
-
-        If your trigger creates a different UUID,
-        we will change this query after checking the trigger.
-    */
-
-    const {
-        data: player,
-        error: playerError
-    } = await supabaseClient
-        .from("players")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+    const { data: player, error: playerError } =
+        await supabaseClient
+            .from("players")
+            .select("id, userName")
+            .eq("id", user.id)
+            .maybeSingle();
 
     if (playerError) {
         console.error("Player lookup error:", playerError);
-        throw new Error(
-            "Your player profile could not be found."
-        );
+        throw playerError;
+    }
+
+    if (!player) {
+        console.error("No player profile found for auth user:", user.id);
+        throw new Error("Your player profile could not be found.");
     }
 
     return {
         user,
-        player
+        player,
+        playerId: player.id,
+        playerName: player.userName
     };
 }
 
@@ -500,31 +488,17 @@ if (onlineModeBtn) {
             onlineSetup.classList.remove("hidden");
             onlineSetup.classList.add("flex");
 
-            /*
-                Automatically load the logged-in user's name.
-            */
+            onlineSetupMessage.classList.add("opacity-0");
 
             try {
 
                 const {
-                    player
+                    playerId,
+                    playerName
                 } = await getCurrentPlayer();
 
-                onlineGameState.playerId = player.id;
-                onlineGameState.playerName =
-                    player.userName || "PLAYER";
-
-                /*
-                    If the old input still exists in HTML,
-                    hide it and fill it automatically.
-                */
-
-                if (onlineName) {
-                    onlineName.value =
-                        onlineGameState.playerName;
-
-                    onlineName.style.display = "none";
-                }
+                onlineGameState.playerId = playerId;
+                onlineGameState.playerName = playerName || "PLAYER";
 
             } catch (error) {
 
@@ -647,27 +621,21 @@ if (createRoomBtn) {
                 */
 
                 const {
-                    player
+                    playerId,
+                    playerName
                 } = await getCurrentPlayer();
 
-                const playerId = player.id;
-                const playerName =
-                    player.userName || "PLAYER";
-
-                onlineGameState.playerId =
-                    playerId;
-
-                onlineGameState.playerName =
-                    playerName;
-
+                onlineGameState.playerId = playerId;
+                onlineGameState.playerName = playerName || "PLAYER";
+                onlineGameState.playerXId = playerId;
+                onlineGameState.playerXName = playerName || "PLAYER";
                 onlineGameState.isHost = true;
                 onlineGameState.mySymbol = "X";
 
 
                 // Generate room code
 
-                const roomCode =
-                    generateRoomCode();
+                const roomCode = generateRoomCode();
 
 
                 // Create room
@@ -713,11 +681,24 @@ if (createRoomBtn) {
                         }
                     ])
                     .select()
-                    .single();
+                    .maybeSingle();
 
 
                 if (roomError) {
+                    console.error("Room database error:", roomError);
+                    if (roomError) {
+                        console.error("Error details:", {
+                            code: roomError.code,
+                            message: roomError.message,
+                            details: roomError.details,
+                            hint: roomError.hint
+                        });
+                    }
                     throw roomError;
+                }
+
+                if (!roomData) {
+                    throw new Error("Failed to create room.");
                 }
 
 
@@ -726,12 +707,6 @@ if (createRoomBtn) {
 
                 onlineGameState.roomCode =
                     roomCode;
-
-                onlineGameState.playerXId =
-                    playerId;
-
-                onlineGameState.playerXName =
-                    playerName;
 
 
                 // Show waiting panel
@@ -831,6 +806,8 @@ if (submitRoomCodeBtn) {
             submitRoomCodeBtn.textContent =
                 "Joining...";
 
+            onlineSetupMessage.classList.add("opacity-0");
+
 
             try {
 
@@ -840,13 +817,9 @@ if (submitRoomCodeBtn) {
                 */
 
                 const {
-                    player
+                    playerId,
+                    playerName
                 } = await getCurrentPlayer();
-
-                const playerId = player.id;
-
-                const playerName =
-                    player.userName || "PLAYER";
 
 
                 // Find room
@@ -858,10 +831,23 @@ if (submitRoomCodeBtn) {
                     .from("rooms")
                     .select("*")
                     .eq("roomCode", code)
-                    .single();
+                    .maybeSingle();
 
 
-                if (roomError || !roomData) {
+                if (roomError) {
+                    console.error("Room database error:", roomError);
+                    if (roomError) {
+                        console.error("Error details:", {
+                            code: roomError.code,
+                            message: roomError.message,
+                            details: roomError.details,
+                            hint: roomError.hint
+                        });
+                    }
+                    throw roomError;
+                }
+
+                if (!roomData) {
                     throw new Error(
                         "Room not found."
                     );
@@ -886,7 +872,7 @@ if (submitRoomCodeBtn) {
                     playerId;
 
                 onlineGameState.playerName =
-                    playerName;
+                    playerName || "PLAYER";
 
                 onlineGameState.isHost = false;
 
@@ -902,7 +888,7 @@ if (submitRoomCodeBtn) {
                     playerId;
 
                 onlineGameState.playerOName =
-                    playerName;
+                    playerName || "PLAYER";
 
                 onlineGameState.playerXId =
                     roomData.playerX;
@@ -910,18 +896,24 @@ if (submitRoomCodeBtn) {
 
                 // Get Player X name
 
-                const {
-                    data: hostPlayer
-                } = await supabaseClient
-                    .from("players")
-                    .select("userName")
-                    .eq("id", roomData.playerX)
-                    .single();
+                if (roomData.playerX) {
+                    const {
+                        data: hostPlayer,
+                        error: hostError
+                    } = await supabaseClient
+                        .from("players")
+                        .select("userName")
+                        .eq("id", roomData.playerX)
+                        .maybeSingle();
 
-                if (hostPlayer) {
+                    if (hostError) {
+                        console.error("Player lookup error:", hostError);
+                    }
 
-                    onlineGameState.playerXName =
-                        hostPlayer.userName;
+                    if (hostPlayer && hostPlayer.userName) {
+                        onlineGameState.playerXName =
+                            hostPlayer.userName;
+                    }
                 }
 
 
@@ -954,6 +946,15 @@ if (submitRoomCodeBtn) {
 
 
                 if (updateError) {
+                    console.error("Room database error:", updateError);
+                    if (updateError) {
+                        console.error("Error details:", {
+                            code: updateError.code,
+                            message: updateError.message,
+                            details: updateError.details,
+                            hint: updateError.hint
+                        });
+                    }
                     throw updateError;
                 }
 
@@ -983,6 +984,8 @@ if (submitRoomCodeBtn) {
                     roomData.id
                 );
 
+                renderOnlineBoard();
+                updateOnlineUI();
                 startTimerUpdate();
 
 
@@ -1025,13 +1028,17 @@ if (cancelWaitingBtn) {
 
                 try {
 
-                    await supabaseClient
+                    const { error: deleteError } = await supabaseClient
                         .from("rooms")
                         .delete()
                         .eq(
                             "id",
                             onlineGameState.roomId
                         );
+
+                    if (deleteError) {
+                        console.error("Room database error:", deleteError);
+                    }
 
                 } catch (error) {
 
@@ -1150,12 +1157,13 @@ async function handleRoomUpdate(room) {
         // Load Player X
 
         if (
-            !onlineGameState.playerXName &&
-            room.playerX
+            room.playerX &&
+            (!onlineGameState.playerXName || onlineGameState.playerXId !== room.playerX)
         ) {
 
             const {
-                data
+                data,
+                error: playerError
             } = await supabaseClient
                 .from("players")
                 .select("userName")
@@ -1163,24 +1171,30 @@ async function handleRoomUpdate(room) {
                     "id",
                     room.playerX
                 )
-                .single();
+                .maybeSingle();
 
-            if (data) {
+            if (playerError) {
+                console.error("Player lookup error:", playerError);
+            }
+
+            if (data && data.userName) {
                 onlineGameState.playerXName =
                     data.userName;
             }
+            onlineGameState.playerXId = room.playerX;
         }
 
 
         // Load Player O
 
         if (
-            !onlineGameState.playerOName &&
-            room.playerO
+            room.playerO &&
+            (!onlineGameState.playerOName || onlineGameState.playerOId !== room.playerO)
         ) {
 
             const {
-                data
+                data,
+                error: playerError
             } = await supabaseClient
                 .from("players")
                 .select("userName")
@@ -1188,12 +1202,17 @@ async function handleRoomUpdate(room) {
                     "id",
                     room.playerO
                 )
-                .single();
+                .maybeSingle();
 
-            if (data) {
+            if (playerError) {
+                console.error("Player lookup error:", playerError);
+            }
+
+            if (data && data.userName) {
                 onlineGameState.playerOName =
                     data.userName;
             }
+            onlineGameState.playerOId = room.playerO;
         }
 
 
@@ -1224,6 +1243,8 @@ async function handleRoomUpdate(room) {
                 "flex"
             );
 
+            renderOnlineBoard();
+            updateOnlineUI();
             startTimerUpdate();
         }
 
@@ -1648,6 +1669,15 @@ async function onlineCellClick(index) {
 
 
         if (error) {
+            console.error("Room database error:", error);
+            if (error) {
+                console.error("Error details:", {
+                    code: error.code,
+                    message: error.message,
+                    details: error.details,
+                    hint: error.hint
+                });
+            }
             throw error;
         }
 
@@ -1837,6 +1867,15 @@ async function requestOnlineRematch() {
 
 
         if (error) {
+            console.error("Room database error:", error);
+            if (error) {
+                console.error("Error details:", {
+                    code: error.code,
+                    message: error.message,
+                    details: error.details,
+                    hint: error.hint
+                });
+            }
             throw error;
         }
 
@@ -1868,9 +1907,9 @@ if (onlineRematchBtn) {
 }
 
 
-if (onlineOverlayRematch) {
+if (overlayRematch) {
 
-    onlineOverlayRematch.addEventListener(
+    overlayRematch.addEventListener(
         "click",
         requestOnlineRematch
     );
@@ -2465,4 +2504,3 @@ if (overlayRematch) {
         }
     );
 }
-
