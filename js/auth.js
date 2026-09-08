@@ -1564,8 +1564,8 @@ function renderOnlineBoard() {
             if (symbol === "X") {
 
                 cell.classList.add(
-                    "text-purple-500",
-                    "border-purple-500/30",
+                    "text-red-600",
+                    "border-red-600/30",
                     "drop-shadow-[0_0_15px_rgba(168,85,247,0.6)]"
                 );
 
@@ -1616,7 +1616,7 @@ function updateOnlineUI() {
             "text-[9px] md:text-xs font-bold tracking-[0.25em] text-purple-400 uppercase whitespace-nowrap";
 
         onlineTurnDot.className =
-            "w-2.5 h-2.5 rounded-full bg-purple-500 shadow-[0_0_15px_rgba(168,85,247,1)] animate-pulse";
+            "w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_15px_rgba(168,85,247,1)] animate-pulse";
 
     } else {
 
@@ -1973,7 +1973,7 @@ function showOnlineGameResult() {
 
         onlineWinnerTitle.className =
             isXWinner
-                ? "mt-4 text-5xl md:text-7xl font-black tracking-[0.08em] text-purple-500 drop-shadow-[0_0_30px_rgba(168,85,247,0.9)]"
+                ? "mt-4 text-5xl md:text-7xl font-black tracking-[0.08em] text-red-600 drop-shadow-[0_0_30px_rgba(168,85,247,0.9)]"
                 : "mt-4 text-5xl md:text-7xl font-black tracking-[0.08em] text-blue-500 drop-shadow-[0_0_30px_rgba(59,130,246,0.9)]";
 
 
@@ -2411,8 +2411,8 @@ function updateBoardDisplay() {
             ) {
 
                 cell.classList.add(
-                    "text-purple-500",
-                    "border-purple-500/30",
+                    "text-red-600",
+                    "border-red-600/30",
                     "drop-shadow-[0_0_15px_rgba(168,85,247,0.6)]"
                 );
 
@@ -2472,7 +2472,7 @@ function updateTurnDisplay() {
             "text-[10px] md:text-xs font-bold tracking-[0.25em] text-purple-400 uppercase";
 
         turnDot.className =
-            "mt-2 w-2 h-2 rounded-full bg-purple-500 mx-auto shadow-[0_0_15px_rgba(168,85,247,1)] animate-pulse";
+            "mt-2 w-2 h-2 rounded-full bg-red-600 mx-auto shadow-[0_0_15px_rgba(168,85,247,1)] animate-pulse";
 
     } else {
 
@@ -2578,7 +2578,7 @@ function finishGame(result) {
                 ) {
 
                     cell.classList.add(
-                        "border-purple-500"
+                        "border-red-600"
                     );
 
                 } else {
@@ -2619,7 +2619,7 @@ function finishGame(result) {
 
         winnerTitle.className =
             result.winner === "X"
-                ? "mt-5 text-6xl md:text-8xl font-black tracking-[0.08em] text-purple-500 drop-shadow-[0_0_30px_rgba(168,85,247,0.9)]"
+                ? "mt-5 text-6xl md:text-8xl font-black tracking-[0.08em] text-red-600 drop-shadow-[0_0_30px_rgba(168,85,247,0.9)]"
                 : "mt-5 text-6xl md:text-8xl font-black tracking-[0.08em] text-blue-500 drop-shadow-[0_0_30px_rgba(59,130,246,0.9)]";
 
 
