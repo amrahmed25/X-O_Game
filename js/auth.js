@@ -174,7 +174,7 @@ async function whenSubmit(e) {
             );
 
             setTimeout(() => {
-                window.location.href = "index.html";
+                window.location.href = "login.html";
             }, 4000);
 
             return;
