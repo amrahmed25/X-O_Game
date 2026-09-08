@@ -390,8 +390,7 @@ createRoomBtn.addEventListener("click", async function () {
 
     try {
         // Create or upsert player
-        const { data: playerData, error: playerError } = await supabase
-            .from("players")
+       const { data: playerData, error: playerError } = await supabaseClient.from("players")
             .insert([{ userName: name }])
             .select()
             .single();
