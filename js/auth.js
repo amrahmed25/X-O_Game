@@ -703,6 +703,7 @@ if (createRoomBtn) {
                     throw new Error("Failed to create room.");
                 }
 
+                console.log("Created room:", roomData);
 
                 onlineGameState.roomId =
                     roomData.id;
@@ -728,8 +729,7 @@ if (createRoomBtn) {
                 );
 
 
-                // Subscribe
-
+                // Subscribe to room updates
                 subscribeToRoom(
                     roomData.id
                 );
@@ -827,7 +827,7 @@ if (submitRoomCodeBtn) {
                 console.log("Room code:", code);
 
 
-                // Find room by code (do NOT filter by player ID or status yet)
+                // Find room by code
 
                 const {
                     data: roomData,
@@ -885,7 +885,7 @@ if (submitRoomCodeBtn) {
                         error: hostError
                     } = await supabaseClient
                         .from("players")
-                        .select("userName")
+                        .select("id, userName")
                         .eq("id", roomData.playerX)
                         .maybeSingle();
 
@@ -1085,6 +1085,7 @@ function subscribeToRoom(roomId) {
         );
     }
 
+    console.log("Subscribing to room:", roomId);
 
     const subscription =
         supabaseClient
@@ -1097,18 +1098,54 @@ function subscribeToRoom(roomId) {
                     table: "rooms",
                     filter: `id=eq.${roomId}`
                 },
-                (payload) => {
+                async (payload) => {
 
-                    handleRoomUpdate(
-                        payload.new
-                    );
+                    console.log("REALTIME ROOM UPDATE:", payload);
+
+                    if (payload && payload.new) {
+                        await handleRoomUpdate(
+                            payload.new
+                        );
+                    }
                 }
             )
-            .subscribe();
+            .subscribe(async (status) => {
+                console.log("Realtime subscription status:", status);
+                if (status === "SUBSCRIBED") {
+                    await fetchCurrentRoom(roomId);
+                }
+            });
 
 
     onlineGameState.realtimeSubscription =
         subscription;
+}
+
+
+// ============================================================
+// FETCH CURRENT ROOM AFTER SUBSCRIBING
+// ============================================================
+
+async function fetchCurrentRoom(roomId) {
+    try {
+        const { data: latestRoom, error } = await supabaseClient
+            .from("rooms")
+            .select("*")
+            .eq("id", roomId)
+            .maybeSingle();
+
+        if (error) {
+            console.error("Error fetching latest room:", error);
+            return;
+        }
+
+        if (latestRoom) {
+            console.log("Fetched latest room state:", latestRoom);
+            await handleRoomUpdate(latestRoom);
+        }
+    } catch (err) {
+        console.error("Error in fetchCurrentRoom:", err);
+    }
 }
 
 
@@ -1120,34 +1157,33 @@ async function handleRoomUpdate(room) {
 
     if (!room) return;
 
+    console.log("Updated room state:", room);
+    console.log("Player O joined:", room.playerO);
+    console.log("Current game status:", room.status);
+    console.log("Current turn:", room.currentTurn);
+
 
     try {
 
-        onlineGameState.board =
-            JSON.parse(
-                room.board || "[]"
-            );
+        onlineGameState.roomId = room.id;
+        onlineGameState.roomCode = room.roomCode;
+        onlineGameState.playerXId = room.playerX;
+        onlineGameState.playerOId = room.playerO;
+        onlineGameState.currentTurn = room.currentTurn;
+        onlineGameState.playerXTime = room.playerXTime;
+        onlineGameState.playerOTime = room.playerOTime;
+        onlineGameState.gameStatus = room.status;
+        onlineGameState.winner = room.winner;
+        onlineGameState.turnStartedAt = room.turnStartedAt;
 
-        onlineGameState.currentTurn =
-            room.currentTurn;
-
-        onlineGameState.playerXTime =
-            room.playerXTime;
-
-        onlineGameState.playerOTime =
-            room.playerOTime;
-
-        onlineGameState.gameStatus =
-            room.status;
-
-        onlineGameState.winner =
-            room.winner;
-
-        onlineGameState.turnStartedAt =
-            room.turnStartedAt;
+        if (typeof room.board === "string") {
+            onlineGameState.board = JSON.parse(room.board || "[]");
+        } else {
+            onlineGameState.board = room.board || ["", "", "", "", "", "", "", "", ""];
+        }
 
 
-        // Load Player X
+        // Load Player X Name
 
         if (
             room.playerX &&
@@ -1159,7 +1195,7 @@ async function handleRoomUpdate(room) {
                 error: playerError
             } = await supabaseClient
                 .from("players")
-                .select("userName")
+                .select("id, userName")
                 .eq(
                     "id",
                     room.playerX
@@ -1174,11 +1210,10 @@ async function handleRoomUpdate(room) {
                 onlineGameState.playerXName =
                     data.userName;
             }
-            onlineGameState.playerXId = room.playerX;
         }
 
 
-        // Load Player O
+        // Load Player O Name
 
         if (
             room.playerO &&
@@ -1190,7 +1225,7 @@ async function handleRoomUpdate(room) {
                 error: playerError
             } = await supabaseClient
                 .from("players")
-                .select("userName")
+                .select("id, userName")
                 .eq(
                     "id",
                     room.playerO
@@ -1205,23 +1240,36 @@ async function handleRoomUpdate(room) {
                 onlineGameState.playerOName =
                     data.userName;
             }
-            onlineGameState.playerOId = room.playerO;
         }
 
 
-        // Waiting -> Playing
+        // Screen Transition: Automatically move from waiting/setup to board when playerO joins or status is playing
 
         if (
-            onlineGameState.gameStatus === "playing" ||
-            (onlineGameState.gameStatus === "waiting" && room.playerO)
+            room.playerO &&
+            (room.status === "playing" || room.status === "finished")
         ) {
 
-            if (!onlineWaitingPanel.classList.contains("hidden")) {
+            if (
+                onlineWaitingPanel &&
+                !onlineWaitingPanel.classList.contains("hidden")
+            ) {
                 onlineWaitingPanel.classList.add("hidden");
                 onlineWaitingPanel.classList.remove("flex");
             }
 
-            if (onlineBoardScreen.classList.contains("hidden")) {
+            if (
+                onlineSetup &&
+                !onlineSetup.classList.contains("hidden")
+            ) {
+                onlineSetup.classList.add("hidden");
+                onlineSetup.classList.remove("flex");
+            }
+
+            if (
+                onlineBoardScreen &&
+                onlineBoardScreen.classList.contains("hidden")
+            ) {
                 onlineBoardScreen.classList.remove("hidden");
                 onlineBoardScreen.classList.add("flex");
             }
@@ -1232,12 +1280,11 @@ async function handleRoomUpdate(room) {
         }
 
 
-        // Finished
+        // Finished State
 
         if (
-            onlineGameState.gameStatus ===
-                "finished" &&
-            onlineGameState.winner
+            room.status === "finished" &&
+            room.winner
         ) {
 
             clearInterval(
