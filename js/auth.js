@@ -8,20 +8,90 @@ const supabaseClient = window.supabase.createClient(
 
 const messageDivCSS = `
     @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 0.8; }
+        from {
+            opacity: 0;
+            transform: translate(15%, -10px);
+        }
+        to {
+            opacity: 1;
+            transform: translate(15%, 0);
+        }
     }
 
     #messageDiv {
-        justify-content: center;
+        position: fixed;
+
+        top: 24px;
+        left: 50%;
+
+        width: min(90vw, 420px);
+        min-height: 0;
+
+        display: hidden;
         align-items: center;
-        opacity: 0.8;
-        background-color: var(--button-color);
-        border-radius: 0.75rem;
-        height: 8rem;
-        width: 33rem;
-        box-shadow: 0 15px 50px -12px #172c5fc5;
-        animation: fadeIn 1s ease;
+        justify-content: center;
+
+        padding: 14px 20px;
+
+        background: rgba(10, 15, 30, 0.55);
+
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+
+        border: 1px solid rgba(255, 255, 255, 0.14);
+
+        border-radius: 14px;
+
+        box-shadow:
+            0 15px 40px rgba(0, 0, 0, 0.45),
+            0 0 25px rgba(255, 0, 70, 0.12),
+            0 0 25px rgba(0, 140, 255, 0.10);
+
+        z-index: 9999;
+
+        box-sizing: border-box;
+
+        animation: fadeIn 0.4s ease forwards;
+    }
+
+    #messageDiv::before {
+        content: "";
+
+        position: absolute;
+
+        top: 0;
+        left: 15%;
+        right: 15%;
+
+        height: 2px;
+
+        border-radius: 999px;
+
+        background: linear-gradient(
+            90deg,
+            #ff003c,
+            #ff315f,
+            #008cff
+        );
+
+        box-shadow:
+            0 0 12px rgba(255, 0, 60, 0.6),
+            0 0 15px rgba(0, 140, 255, 0.4);
+    }
+
+    #message {
+        margin: 0;
+
+        color: rgba(255, 255, 255, 0.9);
+
+        font-size: 14px;
+        font-weight: 500;
+
+        line-height: 1.5;
+
+        text-align: center;
+
+        word-break: break-word;
     }
 `;
 
