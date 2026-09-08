@@ -827,7 +827,7 @@ if (submitRoomCodeBtn) {
                 console.log("Room code:", code);
 
 
-                // Find room by code and waiting status (do NOT filter by player ID)
+                // Find room by code (do NOT filter by player ID or status yet)
 
                 const {
                     data: roomData,
@@ -836,7 +836,6 @@ if (submitRoomCodeBtn) {
                     .from("rooms")
                     .select("*")
                     .eq("roomCode", code)
-                    .eq("status", "waiting")
                     .maybeSingle();
 
                 console.log("Found room:", roomData);
@@ -858,6 +857,14 @@ if (submitRoomCodeBtn) {
                 if (!roomData) {
                     throw new Error(
                         "Room not found."
+                    );
+                }
+
+
+                // Check status after fetching
+                if (roomData.status !== "waiting") {
+                    throw new Error(
+                        "Room is not waiting for a player."
                     );
                 }
 
