@@ -58,38 +58,41 @@ const messageDivCSS = `
        MOBILE
        ========================= */
 
-    @media (max-width: 768px) {
-        #messageDiv {
-            left: 12px;
-            right: 12px;
+@media (max-width: 768px) {
+    #messageDiv {
+        width: 95vw;
+        max-width: 95vw;
 
-            width: auto;
+        margin-left: -47.5vw;
 
-            margin: 0;
+        top: 16px;
 
-            top: 16px;
-        }
+        padding: 13px 18px;
     }
 
+    #message {
+        font-size: 14px;
+        line-height: 1.5;
 
-    /* =========================
-       SMALL MOBILE
-       ========================= */
-
-    @media (max-width: 400px) {
-        #messageDiv {
-            left: 10px;
-            right: 10px;
-
-            top: 14px;
-
-            padding: 12px 15px;
-        }
-
-        #message {
-            font-size: 13px;
-        }
+        word-break: normal;
+        overflow-wrap: break-word;
     }
+}
+
+@media (max-width: 400px) {
+    #messageDiv {
+        width: 94vw;
+        max-width: 94vw;
+
+        margin-left: -47vw;
+
+        padding: 12px 15px;
+    }
+
+    #message {
+        font-size: 13px;
+    }
+}
 
     #messageDiv::before {
         content: "";
