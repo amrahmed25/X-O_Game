@@ -54,6 +54,43 @@ const messageDivCSS = `
         animation: fadeIn 0.4s ease forwards;
     }
 
+    /* =========================
+       MOBILE
+       ========================= */
+
+    @media (max-width: 768px) {
+        #messageDiv {
+            left: 12px;
+            right: 12px;
+
+            width: auto;
+
+            margin: 0;
+
+            top: 16px;
+        }
+    }
+
+
+    /* =========================
+       SMALL MOBILE
+       ========================= */
+
+    @media (max-width: 400px) {
+        #messageDiv {
+            left: 10px;
+            right: 10px;
+
+            top: 14px;
+
+            padding: 12px 15px;
+        }
+
+        #message {
+            font-size: 13px;
+        }
+    }
+
     #messageDiv::before {
         content: "";
 
