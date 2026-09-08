@@ -625,6 +625,8 @@ if (createRoomBtn) {
                     playerName
                 } = await getCurrentPlayer();
 
+                console.log("Creating room for player ID:", playerId);
+
                 onlineGameState.playerId = playerId;
                 onlineGameState.playerName = playerName || "PLAYER";
                 onlineGameState.playerXId = playerId;
@@ -821,8 +823,11 @@ if (submitRoomCodeBtn) {
                     playerName
                 } = await getCurrentPlayer();
 
+                console.log("Current player ID:", playerId);
+                console.log("Room code:", code);
 
-                // Find room
+
+                // Find room by code and waiting status (do NOT filter by player ID)
 
                 const {
                     data: roomData,
@@ -831,11 +836,14 @@ if (submitRoomCodeBtn) {
                     .from("rooms")
                     .select("*")
                     .eq("roomCode", code)
+                    .eq("status", "waiting")
                     .maybeSingle();
+
+                console.log("Found room:", roomData);
 
 
                 if (roomError) {
-                    console.error("Room database error:", roomError);
+                    console.error("Room lookup error:", roomError);
                     if (roomError) {
                         console.error("Error details:", {
                             code: roomError.code,
@@ -854,13 +862,7 @@ if (submitRoomCodeBtn) {
                 }
 
 
-                if (roomData.status !== "waiting") {
-                    throw new Error(
-                        "Room is not waiting for a player."
-                    );
-                }
-
-
+                // Self-join check after fetching
                 if (roomData.playerX === playerId) {
                     throw new Error(
                         "You cannot join your own room."
@@ -868,34 +870,8 @@ if (submitRoomCodeBtn) {
                 }
 
 
-                onlineGameState.playerId =
-                    playerId;
-
-                onlineGameState.playerName =
-                    playerName || "PLAYER";
-
-                onlineGameState.isHost = false;
-
-                onlineGameState.mySymbol = "O";
-
-                onlineGameState.roomId =
-                    roomData.id;
-
-                onlineGameState.roomCode =
-                    code;
-
-                onlineGameState.playerOId =
-                    playerId;
-
-                onlineGameState.playerOName =
-                    playerName || "PLAYER";
-
-                onlineGameState.playerXId =
-                    roomData.playerX;
-
-
-                // Get Player X name
-
+                // Get Player X name from players table
+                let playerXName = "PLAYER 01";
                 if (roomData.playerX) {
                     const {
                         data: hostPlayer,
@@ -911,42 +887,36 @@ if (submitRoomCodeBtn) {
                     }
 
                     if (hostPlayer && hostPlayer.userName) {
-                        onlineGameState.playerXName =
-                            hostPlayer.userName;
+                        playerXName = hostPlayer.userName;
                     }
                 }
 
 
-                // Update room
-
-                const now =
-                    new Date().toISOString();
+                // Update room to set playerO and status = playing
+                const now = new Date().toISOString();
 
                 const {
+                    data: updatedRoom,
                     error: updateError
                 } = await supabaseClient
                     .from("rooms")
                     .update({
                         playerO: playerId,
-
                         status: "playing",
-
                         currentTurn: "X",
-
                         playerXTime: 60,
-
                         playerOTime: 60,
-
                         turnStartedAt: now
                     })
-                    .eq(
-                        "id",
-                        roomData.id
-                    );
+                    .eq("id", roomData.id)
+                    .eq("status", "waiting")
+                    .is("playerO", null)
+                    .select()
+                    .maybeSingle();
 
 
                 if (updateError) {
-                    console.error("Room database error:", updateError);
+                    console.error("Room join update error:", updateError);
                     if (updateError) {
                         console.error("Error details:", {
                             code: updateError.code,
@@ -958,8 +928,24 @@ if (submitRoomCodeBtn) {
                     throw updateError;
                 }
 
+                if (!updatedRoom) {
+                    throw new Error("This room is no longer available.");
+                }
 
-                // Show board
+
+                onlineGameState.playerId = playerId;
+                onlineGameState.playerName = playerName || "PLAYER";
+                onlineGameState.isHost = false;
+                onlineGameState.mySymbol = "O";
+                onlineGameState.roomId = roomData.id;
+                onlineGameState.roomCode = code;
+                onlineGameState.playerOId = playerId;
+                onlineGameState.playerOName = playerName || "PLAYER";
+                onlineGameState.playerXId = roomData.playerX;
+                onlineGameState.playerXName = playerXName;
+
+
+                // Show board screen
 
                 onlineSetup.classList.add(
                     "hidden"
@@ -978,7 +964,7 @@ if (submitRoomCodeBtn) {
                 );
 
 
-                // Subscribe
+                // Subscribe to realtime updates
 
                 subscribeToRoom(
                     roomData.id
@@ -1219,71 +1205,22 @@ async function handleRoomUpdate(room) {
         // Waiting -> Playing
 
         if (
-            onlineGameState.gameStatus ===
-                "waiting" &&
-            room.playerO &&
-            !onlineWaitingPanel.classList.contains(
-                "hidden"
-            )
+            onlineGameState.gameStatus === "playing" ||
+            (onlineGameState.gameStatus === "waiting" && room.playerO)
         ) {
 
-            onlineWaitingPanel.classList.add(
-                "hidden"
-            );
-
-            onlineWaitingPanel.classList.remove(
-                "flex"
-            );
-
-            onlineBoardScreen.classList.remove(
-                "hidden"
-            );
-
-            onlineBoardScreen.classList.add(
-                "flex"
-            );
-
-            renderOnlineBoard();
-            updateOnlineUI();
-            startTimerUpdate();
-        }
-
-
-        // Playing
-
-        if (
-            onlineGameState.gameStatus ===
-            "playing"
-        ) {
-
-            if (
-                onlineBoardScreen.classList.contains(
-                    "hidden"
-                )
-            ) {
-
-                onlineBoardScreen.classList.remove(
-                    "hidden"
-                );
-
-                onlineBoardScreen.classList.add(
-                    "flex"
-                );
-
-                onlineWaitingPanel.classList.add(
-                    "hidden"
-                );
-
-                onlineWaitingPanel.classList.remove(
-                    "flex"
-                );
+            if (!onlineWaitingPanel.classList.contains("hidden")) {
+                onlineWaitingPanel.classList.add("hidden");
+                onlineWaitingPanel.classList.remove("flex");
             }
 
+            if (onlineBoardScreen.classList.contains("hidden")) {
+                onlineBoardScreen.classList.remove("hidden");
+                onlineBoardScreen.classList.add("flex");
+            }
 
             renderOnlineBoard();
-
             updateOnlineUI();
-
             startTimerUpdate();
         }
 
