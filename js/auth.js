@@ -1613,7 +1613,7 @@ function updateOnlineUI() {
             "X'S TURN";
 
         onlineTurnText.className =
-            "text-[9px] md:text-xs font-bold tracking-[0.25em] text-purple-400 uppercase whitespace-nowrap";
+            "text-[9px] md:text-xs font-bold tracking-[0.25em] text-red-400 uppercase whitespace-nowrap";
 
         onlineTurnDot.className =
             "w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_15px_rgba(168,85,247,1)] animate-pulse";
@@ -2469,7 +2469,7 @@ function updateTurnDisplay() {
             "X's Turn";
 
         turnText.className =
-            "text-[10px] md:text-xs font-bold tracking-[0.25em] text-purple-400 uppercase";
+            "text-[10px] md:text-xs font-bold tracking-[0.25em] text-red-400 uppercase";
 
         turnDot.className =
             "mt-2 w-2 h-2 rounded-full bg-red-600 mx-auto shadow-[0_0_15px_rgba(168,85,247,1)] animate-pulse";
