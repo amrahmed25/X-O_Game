@@ -1546,14 +1546,14 @@ async function handleRoomUpdate(room) {
         // Finished State
 
         if (
-            room.status === "finished" &&
-            room.winner
+            room.status === "finished"
         ) {
 
             clearInterval(
                 onlineGameState.timerInterval
             );
 
+            renderOnlineBoard();
             showOnlineGameResult();
         }
 
@@ -1905,7 +1905,7 @@ async function onlineCellClick(index) {
                         ? (
                             result.winner ===
                             "draw"
-                                ? null
+                                ? "draw"
                                 : (
                                     result.winner ===
                                     "X"
@@ -2013,17 +2013,19 @@ function showOnlineGameResult() {
             onlineGameState.board
         );
 
+    const isDraw =
+        (result && result.winner === "draw") ||
+        onlineGameState.winner === "draw" ||
+        (onlineGameState.gameStatus === "finished" && (!onlineGameState.winner || onlineGameState.winner === "draw"));
 
-    if (
-        result &&
-        result.winner === "draw"
-    ) {
+
+    if (isDraw) {
 
         onlineWinnerTitle.textContent =
-            "STALEMATE";
+            "DRAW";
 
         onlineWinnerTitle.className =
-            "mt-4 text-4xl md:text-6xl font-black tracking-[0.08em] text-white";
+            "mt-5 text-5xl md:text-8xl font-black tracking-[0.08em] text-white";
 
         onlineWinnerName.textContent =
             "THE GRID REMAINS UNCLAIMED";
@@ -2031,7 +2033,7 @@ function showOnlineGameResult() {
         onlineWinnerReason.textContent =
             "";
 
-    } else if (result) {
+    } else if (result && (result.winner === "X" || result.winner === "O")) {
 
         const isXWinner =
             result.winner === "X";
@@ -2048,8 +2050,39 @@ function showOnlineGameResult() {
 
         onlineWinnerTitle.className =
             isXWinner
-                ? "mt-4 text-5xl md:text-7xl font-black tracking-[0.08em] text-red-600 drop-shadow-[0_0_30px_rgba(168,85,247,0.9)]"
-                : "mt-4 text-5xl md:text-7xl font-black tracking-[0.08em] text-blue-500 drop-shadow-[0_0_30px_rgba(59,130,246,0.9)]";
+                ? "mt-5 text-6xl md:text-8xl font-black tracking-[0.08em] text-red-600 drop-shadow-[0_0_30px_rgba(168,85,247,0.9)]"
+                : "mt-5 text-6xl md:text-8xl font-black tracking-[0.08em] text-blue-500 drop-shadow-[0_0_30px_rgba(59,130,246,0.9)]";
+
+
+        onlineWinnerName.textContent =
+            winnerName || "PLAYER";
+
+
+        onlineWinnerReason.textContent =
+            "HAS WON THE ROUND";
+
+    } else if (onlineGameState.winner && onlineGameState.winner !== "draw") {
+
+        const isXWinner =
+            onlineGameState.winner === onlineGameState.playerXId;
+
+        const winnerSymbol =
+            isXWinner ? "X" : "O";
+
+        const winnerName =
+            isXWinner
+                ? onlineGameState.playerXName
+                : onlineGameState.playerOName;
+
+
+        onlineWinnerTitle.textContent =
+            winnerSymbol;
+
+
+        onlineWinnerTitle.className =
+            isXWinner
+                ? "mt-5 text-6xl md:text-8xl font-black tracking-[0.08em] text-red-600 drop-shadow-[0_0_30px_rgba(168,85,247,0.9)]"
+                : "mt-5 text-6xl md:text-8xl font-black tracking-[0.08em] text-blue-500 drop-shadow-[0_0_30px_rgba(59,130,246,0.9)]";
 
 
         onlineWinnerName.textContent =
