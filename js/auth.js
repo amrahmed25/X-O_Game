@@ -295,6 +295,7 @@ showMessage(
 setTimeout(() => {
     window.location.href = "xo.html";
 }, 2000);
+}
 
 
 // ============================================================
