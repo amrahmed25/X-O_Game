@@ -208,21 +208,13 @@ async function whenSubmit(e) {
 
         console.log("Registered user:", data.user);
 
-        if (data.user) {
-            try {
-                await ensurePlayerProfile(data.user, nameInput);
-            } catch (profileErr) {
-                console.warn("Auto-profile creation on signup notice:", profileErr);
-            }
-        }
-
         if (!data.session) {
             showMessage(
                 "Account created successfully. Please check your email to confirm your account."
             );
 
             setTimeout(() => {
-                window.location.href = "login.html";
+                window.location.href = "index.html";
             }, 4000);
 
             return;
@@ -233,7 +225,7 @@ async function whenSubmit(e) {
         );
 
         setTimeout(() => {
-            window.location.href = "login.html";
+            window.location.href = "index.html";
         }, 3000);
 
         return;
@@ -266,14 +258,6 @@ async function whenSubmit(e) {
     }
 
     console.log("Logged in user:", data.user);
-
-    if (data.user) {
-        try {
-            await ensurePlayerProfile(data.user);
-        } catch (profileErr) {
-            console.error("Error ensuring player profile on login:", profileErr);
-        }
-    }
 
     showMessage(
         "Login successful. Redirecting you now to Home page"
