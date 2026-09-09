@@ -1554,7 +1554,11 @@ async function handleRoomUpdate(room) {
             );
 
             renderOnlineBoard();
-            showOnlineGameResult();
+            updateOnlineUI();
+
+            setTimeout(() => {
+                showOnlineGameResult();
+            }, 500);
         }
 
     } catch (error) {
@@ -1862,6 +1866,11 @@ async function onlineCellClick(index) {
             onlineGameState.mySymbol;
 
 
+        // Optimistically apply and render move immediately on local board
+        onlineGameState.board = newBoard;
+        renderOnlineBoard();
+
+
         const nextTurn =
             onlineGameState.mySymbol === "X"
                 ? "O"
@@ -2013,27 +2022,8 @@ function showOnlineGameResult() {
             onlineGameState.board
         );
 
-    const isDraw =
-        (result && result.winner === "draw") ||
-        onlineGameState.winner === "draw" ||
-        (onlineGameState.gameStatus === "finished" && (!onlineGameState.winner || onlineGameState.winner === "draw"));
-
-
-    if (isDraw) {
-
-        onlineWinnerTitle.textContent =
-            "DRAW";
-
-        onlineWinnerTitle.className =
-            "mt-5 text-5xl md:text-8xl font-black tracking-[0.08em] text-white";
-
-        onlineWinnerName.textContent =
-            "THE GRID REMAINS UNCLAIMED";
-
-        onlineWinnerReason.textContent =
-            "";
-
-    } else if (result && (result.winner === "X" || result.winner === "O")) {
+    // 1. Check if the latest move created a winner (3-in-a-row)
+    if (result && (result.winner === "X" || result.winner === "O")) {
 
         const isXWinner =
             result.winner === "X";
@@ -2091,6 +2081,21 @@ function showOnlineGameResult() {
 
         onlineWinnerReason.textContent =
             "HAS WON THE ROUND";
+
+    } else {
+
+        // 2. Otherwise, check for Draw (no winner + board full)
+        onlineWinnerTitle.textContent =
+            "DRAW";
+
+        onlineWinnerTitle.className =
+            "mt-5 text-5xl md:text-8xl font-black tracking-[0.08em] text-white";
+
+        onlineWinnerName.textContent =
+            "THE GRID REMAINS UNCLAIMED";
+
+        onlineWinnerReason.textContent =
+            "";
     }
 
 
