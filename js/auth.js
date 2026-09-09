@@ -1553,12 +1553,12 @@ async function handleRoomUpdate(room) {
                 onlineGameState.timerInterval
             );
 
+            onlineGameState.gameStatus = "finished";
+            onlineGameState.winner = room.winner;
+
             renderOnlineBoard();
             updateOnlineUI();
-
-            setTimeout(() => {
-                showOnlineGameResult();
-            }, 500);
+            showOnlineGameResult();
         }
 
     } catch (error) {
@@ -1883,6 +1883,21 @@ async function onlineCellClick(index) {
 
         const result =
             checkWinner(newBoard);
+
+
+        if (result) {
+            onlineGameState.gameStatus = "finished";
+            onlineGameState.winner =
+                result.winner === "draw"
+                    ? "draw"
+                    : (result.winner === "X"
+                        ? onlineGameState.playerXId
+                        : onlineGameState.playerOId);
+
+            renderOnlineBoard();
+            updateOnlineUI();
+            showOnlineGameResult();
+        }
 
 
         const {
