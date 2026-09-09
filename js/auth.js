@@ -180,9 +180,12 @@ async function whenSubmit(e) {
         greetingMessage?.innerText === "Sign Up for Games Station";
 
 
+
     // ========================================================
     // SIGN UP
     // ========================================================
+    console.log("AUTH MODE:", isRegister ? "SIGN UP" : "LOGIN");
+console.log("GREETING TEXT:", greetingMessage?.innerText);
 
     if (isRegister) {
 
