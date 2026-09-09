@@ -208,13 +208,21 @@ async function whenSubmit(e) {
 
         console.log("Registered user:", data.user);
 
+        if (data.user) {
+            try {
+                await ensurePlayerProfile(data.user, nameInput);
+            } catch (profileErr) {
+                console.warn("Auto-profile creation on signup notice:", profileErr);
+            }
+        }
+
         if (!data.session) {
             showMessage(
                 "Account created successfully. Please check your email to confirm your account."
             );
 
             setTimeout(() => {
-                window.location.href = "index.html";
+                window.location.href = "login.html";
             }, 4000);
 
             return;
@@ -225,48 +233,68 @@ async function whenSubmit(e) {
         );
 
         setTimeout(() => {
-            window.location.href = "index.html";
+            window.location.href = "login.html";
         }, 3000);
 
         return;
     }
 
+// ========================================================
+// LOGIN
+// ========================================================
 
-    // ========================================================
-    // LOGIN
-    // ========================================================
-
-    if (!emailInput || !passwordInput) {
-        showMessage("Please enter your email and password.");
-        return;
-    }
-
-    showMessage("Logging in...");
-
-    const {
-        data,
-        error
-    } = await supabaseClient.auth.signInWithPassword({
-        email: emailInput,
-        password: passwordInput
-    });
-
-    if (error) {
-        console.error("Login error:", error);
-        showMessage(error.message);
-        return;
-    }
-
-    console.log("Logged in user:", data.user);
-
-    showMessage(
-        "Login successful. Redirecting you now to Home page"
-    );
-
-    setTimeout(() => {
-        window.location.href = "xo.html";
-    }, 2000);
+if (!emailInput || !passwordInput) {
+    showMessage("Please enter your email and password.");
+    return;
 }
+
+showMessage("Logging in...");
+
+const {
+    data,
+    error
+} = await supabaseClient.auth.signInWithPassword({
+    email: emailInput,
+    password: passwordInput
+});
+
+if (error) {
+    console.error("Login error:", error);
+
+    // Invalid email or password
+    if (
+        error.message.toLowerCase().includes("invalid login credentials")
+    ) {
+        showMessage(
+            "Invalid email or password. If you just created your account, please confirm your email first."
+        );
+    } else {
+        showMessage(error.message);
+    }
+
+    return;
+}
+
+console.log("Logged in user:", data.user);
+
+if (data.user) {
+    try {
+        await ensurePlayerProfile(data.user);
+    } catch (profileErr) {
+        console.error(
+            "Error ensuring player profile on login:",
+            profileErr
+        );
+    }
+}
+
+showMessage(
+    "Login successful. Redirecting you now to Home page"
+);
+
+setTimeout(() => {
+    window.location.href = "xo.html";
+}, 2000);
 
 
 // ============================================================
