@@ -208,6 +208,14 @@ async function whenSubmit(e) {
 
         console.log("Registered user:", data.user);
 
+        if (data.user) {
+            try {
+                await ensurePlayerProfile(data.user, nameInput);
+            } catch (profileErr) {
+                console.warn("Auto-profile creation on signup notice:", profileErr);
+            }
+        }
+
         if (!data.session) {
             showMessage(
                 "Account created successfully. Please check your email to confirm your account."
@@ -258,6 +266,14 @@ async function whenSubmit(e) {
     }
 
     console.log("Logged in user:", data.user);
+
+    if (data.user) {
+        try {
+            await ensurePlayerProfile(data.user);
+        } catch (profileErr) {
+            console.error("Error ensuring player profile on login:", profileErr);
+        }
+    }
 
     showMessage(
         "Login successful. Redirecting you now to Home page"
@@ -452,8 +468,67 @@ let onlineGameState = {
 
 
 // ============================================================
-// GET CURRENT LOGGED-IN PLAYER
+// ENSURE & GET CURRENT LOGGED-IN PLAYER
 // ============================================================
+
+async function ensurePlayerProfile(user, customName = null) {
+    if (!user) return null;
+
+    const { data: existingPlayer, error: fetchError } = await supabaseClient
+        .from("players")
+        .select("id, userName")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    if (fetchError) {
+        console.error("Player lookup error in ensurePlayerProfile:", fetchError);
+    }
+
+    if (existingPlayer) {
+        return existingPlayer;
+    }
+
+    const userName =
+        customName ||
+        user.user_metadata?.username ||
+        user.user_metadata?.name ||
+        user.user_metadata?.full_name ||
+        (user.email ? user.email.split("@")[0] : null) ||
+        "Player";
+
+    console.log(`Creating missing player profile for auth user ${user.id} with userName: ${userName}`);
+
+    const { data: createdPlayer, error: createError } = await supabaseClient
+        .from("players")
+        .upsert(
+            [
+                {
+                    id: user.id,
+                    userName: userName
+                }
+            ],
+            { onConflict: "id" }
+        )
+        .select("id, userName")
+        .maybeSingle();
+
+    if (createError) {
+        console.error("Error creating player profile:", createError);
+        const { data: reFetchedPlayer } = await supabaseClient
+            .from("players")
+            .select("id, userName")
+            .eq("id", user.id)
+            .maybeSingle();
+
+        if (reFetchedPlayer) {
+            return reFetchedPlayer;
+        }
+
+        throw createError;
+    }
+
+    return createdPlayer || { id: user.id, userName: userName };
+}
 
 async function getCurrentPlayer() {
     const {
@@ -469,7 +544,7 @@ async function getCurrentPlayer() {
         throw new Error("You must be logged in.");
     }
 
-    const { data: player, error: playerError } =
+    let { data: player, error: playerError } =
         await supabaseClient
             .from("players")
             .select("id, userName")
@@ -482,8 +557,8 @@ async function getCurrentPlayer() {
     }
 
     if (!player) {
-        console.error("No player profile found for auth user:", user.id);
-        throw new Error("Your player profile could not be found.");
+        console.log("No player profile found for auth user:", user.id, "- auto-creating profile...");
+        player = await ensurePlayerProfile(user);
     }
 
     return {
