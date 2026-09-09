@@ -177,7 +177,7 @@ async function whenSubmit(e) {
 
     // Detect whether this is Sign Up or Login
     const isRegister =
-        greetingMessage?.innerText === "Sign Up for Games Station";
+    greetingMessage?.innerText.trim().toLowerCase() === "create account";
 
 
 
