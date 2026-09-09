@@ -1708,24 +1708,21 @@ async function handleRoomUpdate(room) {
 
         // Finished State
 
-        if (room.status === "finished") {
-    clearInterval(onlineGameState.timerInterval);
+        if (
+            room.status === "finished"
+        ) {
 
-    onlineGameState.gameStatus = "finished";
-    onlineGameState.winner = room.winner;
+            clearInterval(
+                onlineGameState.timerInterval
+            );
 
-    renderOnlineBoard();
-    updateOnlineUI();
+            onlineGameState.gameStatus = "finished";
+            onlineGameState.winner = room.winner;
 
-    // Always show the result on both players' devices
-    if (room.winner === "draw") {
-        showOnlineGameResult();
-    } else if (room.winner) {
-        showOnlineGameResult();
-    }
-
-    return;
-}
+            renderOnlineBoard();
+            updateOnlineUI();
+            showOnlineGameResult();
+        }
 
     } catch (error) {
 
