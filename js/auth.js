@@ -166,12 +166,23 @@ async function whenSubmit(e) {
         document.getElementById("message");
 
     function showMessage(message) {
-        if (messageDiv) messageDiv.style.display = "flex";
-        if (messagePlace) messagePlace.textContent = message;
+        if (messageDiv) {
+            messageDiv.style.display = "flex";
+        }
+
+        if (messagePlace) {
+            messagePlace.textContent = message;
+        }
     }
 
+    // Detect whether this is Sign Up or Login
     const isRegister =
         greetingMessage?.innerText === "Sign Up for Games Station";
+
+
+    // ========================================================
+    // SIGN UP
+    // ========================================================
 
     if (isRegister) {
 
@@ -180,122 +191,258 @@ async function whenSubmit(e) {
             return;
         }
 
-        if (!emailInput || !passwordInput) {
-            showMessage("Please enter your email and password.");
+        if (!emailInput) {
+            showMessage("Please enter your email.");
+            return;
+        }
+
+        if (!passwordInput) {
+            showMessage("Please enter your password.");
+            return;
+        }
+
+        if (passwordInput.length < 6) {
+            showMessage("Password must be at least 6 characters.");
             return;
         }
 
         showMessage("Creating your account...");
 
-        const {
-            data,
-            error
-        } = await supabaseClient.auth.signUp({
-            email: emailInput,
-            password: passwordInput,
-            options: {
-                data: {
-                    username: nameInput
+        try {
+
+            const {
+                data,
+                error
+            } = await supabaseClient.auth.signUp({
+                email: emailInput,
+                password: passwordInput,
+                options: {
+                    data: {
+                        username: nameInput
+                    }
                 }
+            });
+
+
+            // ------------------------------------------------
+            // Sign Up Error
+            // ------------------------------------------------
+
+            if (error) {
+                console.error("Sign Up error:", error);
+                showMessage(error.message);
+                return;
             }
-        });
 
-        if (error) {
-            console.error("Sign up error:", error);
-            showMessage(error.message);
-            return;
-        }
 
-        console.log("Registered user:", data.user);
+            // ------------------------------------------------
+            // Make sure Auth user was created
+            // ------------------------------------------------
 
-        if (data.user) {
-            try {
-                await ensurePlayerProfile(data.user, nameInput);
-            } catch (profileErr) {
-                console.warn("Auto-profile creation on signup notice:", profileErr);
+            if (!data || !data.user) {
+
+                console.error(
+                    "Supabase Sign Up returned no user:",
+                    data
+                );
+
+                showMessage(
+                    "Account creation failed. No user was created."
+                );
+
+                return;
             }
-        }
 
-        if (!data.session) {
-            showMessage(
-                "Account created successfully. Please check your email to confirm your account."
+
+            console.log(
+                "Supabase Auth user created:",
+                data.user
             );
 
+
+            // ------------------------------------------------
+            // Create player profile
+            // ------------------------------------------------
+
+            try {
+
+                await ensurePlayerProfile(
+                    data.user,
+                    nameInput
+                );
+
+                console.log(
+                    "Player profile created successfully."
+                );
+
+            } catch (profileErr) {
+
+                console.error(
+                    "Player profile creation failed:",
+                    profileErr
+                );
+
+                // Don't stop the registration because
+                // the Auth account was already created.
+            }
+
+
+            // ------------------------------------------------
+            // Success
+            // ------------------------------------------------
+
+            showMessage(
+                "Account created successfully!"
+            );
+
+
+            // Go to Login page
             setTimeout(() => {
                 window.location.href = "login.html";
-            }, 4000);
+            }, 1500);
+
+
+            return;
+
+        } catch (err) {
+
+            console.error(
+                "Unexpected Sign Up error:",
+                err
+            );
+
+            showMessage(
+                "Something went wrong while creating your account."
+            );
 
             return;
         }
+    }
 
-        showMessage(
-            "Register successful. Redirecting you now to Login page"
-        );
 
-        setTimeout(() => {
-            window.location.href = "login.html";
-        }, 3000);
 
+    // ========================================================
+    // LOGIN
+    // ========================================================
+
+    if (!emailInput) {
+        showMessage("Please enter your email.");
         return;
     }
 
-// ========================================================
-// LOGIN
-// ========================================================
-
-if (!emailInput || !passwordInput) {
-    showMessage("Please enter your email and password.");
-    return;
-}
-
-showMessage("Logging in...");
-
-const {
-    data,
-    error
-} = await supabaseClient.auth.signInWithPassword({
-    email: emailInput,
-    password: passwordInput
-});
-
-if (error) {
-    console.error("Login error:", error);
-
-    // Invalid email or password
-    if (
-        error.message.toLowerCase().includes("invalid login credentials")
-    ) {
-        showMessage(
-            "Invalid email or password. If you just created your account, please confirm your email first."
-        );
-    } else {
-        showMessage(error.message);
+    if (!passwordInput) {
+        showMessage("Please enter your password.");
+        return;
     }
 
-    return;
-}
+    showMessage("Logging in...");
 
-console.log("Logged in user:", data.user);
 
-if (data.user) {
     try {
-        await ensurePlayerProfile(data.user);
-    } catch (profileErr) {
+
+        const {
+            data,
+            error
+        } = await supabaseClient.auth.signInWithPassword({
+            email: emailInput,
+            password: passwordInput
+        });
+
+
+        // ------------------------------------------------
+        // Login Error
+        // ------------------------------------------------
+
+        if (error) {
+
+            console.error(
+                "Login error:",
+                error
+            );
+
+            showMessage(error.message);
+
+            return;
+        }
+
+
+        // ------------------------------------------------
+        // Make sure user exists
+        // ------------------------------------------------
+
+        if (!data || !data.user) {
+
+            console.error(
+                "Login returned no user:",
+                data
+            );
+
+            showMessage(
+                "Login failed. User account was not found."
+            );
+
+            return;
+        }
+
+
+        console.log(
+            "Logged in user:",
+            data.user
+        );
+
+
+        // ------------------------------------------------
+        // Ensure player profile exists
+        // ------------------------------------------------
+
+        try {
+
+            await ensurePlayerProfile(
+                data.user
+            );
+
+            console.log(
+                "Player profile verified successfully."
+            );
+
+        } catch (profileErr) {
+
+            console.error(
+                "Error ensuring player profile on login:",
+                profileErr
+            );
+
+            // Don't prevent login because of profile issues.
+        }
+
+
+        // ------------------------------------------------
+        // Login Success
+        // ------------------------------------------------
+
+        showMessage(
+            "Login successful! Redirecting..."
+        );
+
+
+        setTimeout(() => {
+            window.location.href = "xo.html";
+        }, 1500);
+
+
+    } catch (err) {
+
         console.error(
-            "Error ensuring player profile on login:",
-            profileErr
+            "Unexpected Login error:",
+            err
+        );
+
+        showMessage(
+            "Something went wrong while logging in."
         );
     }
 }
 
-showMessage(
-    "Login successful. Redirecting you now to Home page"
-);
-
-setTimeout(() => {
-    window.location.href = "xo.html";
-}, 2000);
-}
 
 
 // ============================================================
